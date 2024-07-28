@@ -3,12 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
 	"os"
 
-	. "github.com/GearTech0/nimbus/pkg/raindropio"
+	. "github.com/GearTech0/nimbus/internal/nimbus"
 )
 
 type InvokeResponse struct {
@@ -36,42 +34,27 @@ func run(w http.ResponseWriter, r *http.Request) {
 	}
 	bearer := "Bearer " + kc.Bearer
 
-	c := &RaindropIOClient{Bearer: bearer, Handle: &http.Client{}, Baseurl: url}
-
-	resp, err := c.CreateRaindrop(RaindropType{
-		Link:       "https://stackoverflow.com/questions/24455147/how-do-i-send-a-json-string-in-a-post-request-in-go",
-		Title:      "How do I fix this stupid bugs...",
-		Collection: CollectionType{Id: "46406303"},
-	})
-	if err != nil {
-		fmt.Println("error: ", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println("error: ", err)
-	}
-
-	fmt.Print(string([]byte(body)))
+	nimbus := SetupNimbus(url, bearer)
+	nimbus.RunExample()
 
 	// TODO: See if there's a cleaner way to handle this.
-	response := &InvokeResponse{
-		ReturnValue: "",
-		Outputs: map[string]interface{}{
-			"output": "",
-		},
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(response)
+	// response := &InvokeResponse{
+	// 	ReturnValue: "",
+	// 	Outputs: map[string]interface{}{
+	// 		"output": "",
+	// 	},
+	// }
+	// w.Header().Set("Content-Type", "application/json")
+	// _ = json.NewEncoder(w).Encode(response)
 }
 
 func main() {
-	listenAddr := ":8080"
-	if val, ok := os.LookupEnv("FUNCTIONS_CUSTOMHANDLER_PORT"); ok {
-		listenAddr = ":" + val
-	}
-	http.HandleFunc("/trigger", run)
-	log.Printf("About to listen on %s. Go to https://127.0.0.1%s/", listenAddr, listenAddr)
-	log.Fatal(http.ListenAndServe(listenAddr, nil))
+	run(nil, nil)
+	// listenAddr := ":8080"
+	// if val, ok := os.LookupEnv("FUNCTIONS_CUSTOMHANDLER_PORT"); ok {
+	// 	listenAddr = ":" + val
+	// }
+	// http.HandleFunc("/trigger", run)
+	// log.Printf("About to listen on %s. Go to https://127.0.0.1%s/", listenAddr, listenAddr)
+	// log.Fatal(http.ListenAndServe(listenAddr, nil))
 }

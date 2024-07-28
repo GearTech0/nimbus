@@ -1,14 +1,18 @@
+// Package raindropio contains api wrappers for the Raindrop IO API
 package raindropio
 
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 )
 
+// ------------------------------------------------------------------------
+// Raindrop types
 type RaindropIOClient struct {
 	Baseurl string
 	Bearer  string
@@ -67,56 +71,100 @@ func (r *RaindropType) ConvertToURLVals() (url.Values, error) {
 	return ret, nil
 }
 
-func (n *RaindropIOClient) GetCollections() (res *http.Response, e error) {
+// ------------------------------------------------------------------------
+// http extention
+type OperationResponseType struct {
+	response *http.Response
+	err      error
+}
+
+// ------------------------------------------------------------------------
+// Operations [TODO: Needs implementation]
+type Operation interface {
+	GetCollections() OperationResponseType
+	GetCollectionById(id string) OperationResponseType
+	GetRaindropById(id string) OperationResponseType
+	CreateRaindrop(r RaindropType) OperationResponseType
+}
+
+func (n *RaindropIOClient) GetCollections() OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
 	route := "collections/childrens"
 
-	req, err := http.NewRequest("GET", n.Baseurl+route, nil)
-	if err != nil {
-		return nil, err
+	var req *http.Request
+	req, opRes.err = http.NewRequest("GET", n.Baseurl+route, nil)
+	if opRes.err != nil {
+		return opRes
 	}
 
 	req.Header.Add("Authorization", n.Bearer)
 
-	return n.Handle.Do(req)
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
 }
 
-func (n *RaindropIOClient) GetCollectionById(id string) (res *http.Response, e error) {
+func (n *RaindropIOClient) GetCollectionById(id string) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
 	route := "collection/"
 
-	req, err := http.NewRequest("GET", n.Baseurl+route+id, nil)
-	if err != nil {
-		return nil, err
+	var req *http.Request
+	req, opRes.err = http.NewRequest("GET", n.Baseurl+route+id, nil)
+	if opRes.err != nil {
+		return opRes
 	}
 	req.Header.Add("Authorization", n.Bearer)
 
-	return n.Handle.Do(req)
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
 }
 
-func (n *RaindropIOClient) GetRaindropById(id string) (res *http.Response, e error) {
+func (n *RaindropIOClient) GetRaindropById(id string) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
 	route := "raindrop/"
 
-	req, err := http.NewRequest("GET", n.Baseurl+route+id, nil)
-	if err != nil {
-		return nil, err
+	var req *http.Request
+	req, opRes.err = http.NewRequest("GET", n.Baseurl+route+id, nil)
+	if opRes.err != nil {
+		return opRes
 	}
 
 	req.Header.Add("Authorization", n.Bearer)
 
-	return n.Handle.Do(req)
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
 }
 
-func (n *RaindropIOClient) CreateRaindrop(r RaindropType) (res *http.Response, e error) {
+func (n *RaindropIOClient) CreateRaindrop(r RaindropType) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
 	route := "raindrop/"
 
 	parsedVals, _ := json.Marshal(r)
 	fmt.Println("urlVals: ", string(parsedVals))
 
-	req, err := http.NewRequest("POST", n.Baseurl+route, strings.NewReader(string(parsedVals)))
-	if err != nil {
-		return nil, err
+	var req *http.Request
+	req, opRes.err = http.NewRequest("POST", n.Baseurl+route, strings.NewReader(string(parsedVals)))
+	if opRes.err != nil {
+		return opRes
 	}
 	req.Header.Set("Authorization", n.Bearer)
 	req.Header.Set("Content-Type", "application/json")
 
-	return n.Handle.Do(req)
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
+}
+
+func (opRes *OperationResponseType) ExecuteOnResponse(callback func(jsonResponse string)) {
+	// if errored, panic
+	if opRes.err != nil {
+		panic(opRes.err)
+	}
+
+	defer opRes.response.Body.Close()
+
+	body, err := io.ReadAll(opRes.response.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	callback(string(body))
 }
