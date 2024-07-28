@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -70,11 +71,17 @@ func (n *NimbusClient) CreateRaindrop(v url.Values) (res *http.Response, e error
 	return nil, nil
 }
 
+type InvokeResponse struct {
+	Outputs     map[string]interface{}
+	ReturnValue interface{}
+	Logs        []string
+}
+
 type KeyChain struct {
 	Bearer string `json:"bearer"`
 }
 
-func main() {
+func run(w http.ResponseWriter, r *http.Request) {
 	url := "https://api.raindrop.io/rest/v1/"
 
 	// Bearer token from secret folder
@@ -104,4 +111,24 @@ func main() {
 	}
 
 	fmt.Print(string([]byte(body)))
+
+	// TODO: See if there's a cleaner way to handle this.
+	response := &InvokeResponse{
+		ReturnValue: "",
+		Outputs: map[string]interface{}{
+			"output": "",
+		},
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+func main() {
+	listenAddr := ":8080"
+	if val, ok := os.LookupEnv("FUNCTIONS_CUSTOMHANDLER_PORT"); ok {
+		listenAddr = ":" + val
+	}
+	http.HandleFunc("/trigger", run)
+	log.Printf("About to listen on %s. Go to https://127.0.0.1%s/", listenAddr, listenAddr)
+	log.Fatal(http.ListenAndServe(listenAddr, nil))
 }
