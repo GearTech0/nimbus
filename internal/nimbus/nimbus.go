@@ -36,17 +36,13 @@ func SetupNimbus(baseurl string, bearer string) *Nimbus {
 func (n *Nimbus) RunExample() {
 
 	// Define new Raindrop
-	testCollection := RaindropCollectionPropertyType{Id: NIMBUS_TEST_COLLECTION}
-	raindropConfig := RaindropType{
-		Title:      NIMBUS_CONFIG_TITLE,
-		Link:       NIMBUS_CONFIG_LINK,
-		Collection: testCollection,
+	changeNimbusConfig := RaindropType{
+		Link: "https://www.youtube.com/watch?v=Z6grOAUEIrQ",
 	}
-
 	n.Config = NimbusConfig{}
 
 	// Create test raindrop
-	opRes := n.Client.CreateRaindrop(raindropConfig)
+	opRes := n.Client.UpdateRaindrop(823844493, changeNimbusConfig)
 	opRes.ExecuteOnResponse(func(jsonResponse string) {
 		fmt.Print(jsonResponse)
 	})

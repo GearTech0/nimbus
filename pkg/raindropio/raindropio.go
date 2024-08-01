@@ -3,13 +3,22 @@ package raindropio
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 )
+
+// ------------------------------------------------------------------------
+// Constants
+// ------------------------------------------------------------------------
+const ROUTE_COLLECTIONS string = "collections/"
+const ROUTE_COLLECTION string = "collection/"
+const ROUTE_CHILDRENS string = "childrens/"
+const ROUTE_MERGE string = "merge/"
+const ROUTE_RAINDROP string = "raindrop/"
+const ROUTE_SUGGEST string = "suggest/"
 
 // ------------------------------------------------------------------------
 // Client type
@@ -104,6 +113,14 @@ type CollaboratorsType struct {
 	Role     string `json:"role,omitempty"`
 }
 
+type IDList struct {
+	Ids []int `json:"ids"`
+}
+
+type LinkBody struct {
+	Link string `json:"link"`
+}
+
 // Convert a raindrop into url.Values
 func (r *RaindropType) ConvertToURLVals() (url.Values, error) {
 	ret := url.Values{}
@@ -143,7 +160,7 @@ type Operation interface {
 
 // Get child collections
 /*
-	form:
+	[OUT] form:
 		result bool
 		items Array<object>
 			_id int
@@ -164,7 +181,7 @@ type Operation interface {
 */
 func (n *RaindropIOClient) GetChildCollections() OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
-	route := "collections/childrens"
+	route := ROUTE_COLLECTIONS + ROUTE_CHILDRENS
 
 	var req *http.Request
 	req, opRes.err = http.NewRequest("GET", n.Baseurl+route, nil)
@@ -180,7 +197,7 @@ func (n *RaindropIOClient) GetChildCollections() OperationResponseType {
 
 // Get collection
 /*
-	form:
+	[OUT] form:
 		result bool
 		item Object
 			_id int
@@ -199,12 +216,12 @@ func (n *RaindropIOClient) GetChildCollections() OperationResponseType {
 			view string
 
 */
-func (n *RaindropIOClient) GetCollectionById(id string) OperationResponseType {
+func (n *RaindropIOClient) GetCollectionById(id int) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
-	route := "collection/"
+	route := ROUTE_COLLECTION
 
 	var req *http.Request
-	req, opRes.err = http.NewRequest("GET", n.Baseurl+route+id, nil)
+	req, opRes.err = http.NewRequest("GET", n.Baseurl+route+strconv.Itoa(id), nil)
 	if opRes.err != nil {
 		return opRes
 	}
@@ -216,7 +233,7 @@ func (n *RaindropIOClient) GetCollectionById(id string) OperationResponseType {
 
 // Get root collections
 /*
-	form:
+	[OUT] form:
 		result bool
 		items Array<object>
 			_id int
@@ -237,7 +254,7 @@ func (n *RaindropIOClient) GetCollectionById(id string) OperationResponseType {
 */
 func (n *RaindropIOClient) GetRootCollections() OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
-	route := "collections/"
+	route := ROUTE_COLLECTIONS
 
 	var req *http.Request
 	req, opRes.err = http.NewRequest("GET", n.Baseurl+route, nil)
@@ -250,16 +267,120 @@ func (n *RaindropIOClient) GetRootCollections() OperationResponseType {
 	return opRes
 }
 
+// Create Collection
+/*
+	[IN] form:
+		view string
+		title string
+		sort int
+		public bool
+		parent {$id int}
+		cover Array<string>
+*/
+func (n *RaindropIOClient) CreateCollection(in CollectionType) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
+	route := ROUTE_COLLECTION
+
+	var parsed []byte
+	parsed, opRes.err = json.Marshal(in)
+	if opRes.err != nil {
+		return opRes
+	}
+
+	var req *http.Request
+	req, opRes.err = http.NewRequest("POST", n.Baseurl+route, strings.NewReader(string(parsed)))
+	if opRes.err != nil {
+		return opRes
+	}
+	req.Header.Add("Authorization", n.Bearer)
+	req.Header.Add("Content-Type", "application/json")
+
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
+}
+
+// Update an existing collection
+/*
+	[IN] form:
+		view string
+		title string
+		sort int
+		public bool
+		parent {$id int}
+		cover Array<string>
+*/
+func (n *RaindropIOClient) UpdateCollection(id int, in CollectionType) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
+	route := ROUTE_COLLECTION
+
+	var parsed []byte
+	parsed, opRes.err = json.Marshal(in)
+	if opRes.err != nil {
+		return opRes
+	}
+
+	var req *http.Request
+	req, opRes.err = http.NewRequest("PUT", n.Baseurl+route+strconv.Itoa(id), strings.NewReader(string(parsed)))
+	if opRes.err != nil {
+		return opRes
+	}
+	req.Header.Add("Authorization", n.Bearer)
+	req.Header.Add("Content-Type", "application/json")
+
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
+}
+
+// Remove collection
+func (n *RaindropIOClient) RemoveCollection(id int) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
+	route := ROUTE_COLLECTION
+
+	var req *http.Request
+	req, opRes.err = http.NewRequest("DELETE", n.Baseurl+route+strconv.Itoa(id), nil)
+	if opRes.err != nil {
+		return opRes
+	}
+	req.Header.Add("Authorization", n.Bearer)
+
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
+}
+
+// Remove multiple collections
+func (n *RaindropIOClient) RemoveMultipleCollections(in IDList) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
+	route := ROUTE_COLLECTIONS
+
+	var parsed []byte
+	parsed, opRes.err = json.Marshal(in)
+	if opRes.err != nil {
+		return opRes
+	}
+
+	var req *http.Request
+	req, opRes.err = http.NewRequest("DELETE", n.Baseurl+route, strings.NewReader(string(parsed)))
+	if opRes.err != nil {
+		return opRes
+	}
+	req.Header.Add("Authorization", n.Bearer)
+	req.Header.Add("Content-Type", "application/json")
+
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
+}
+
 // -------------------------------------------------------------------------
 // Raindrops methods
 // -------------------------------------------------------------------------
 
-func (n *RaindropIOClient) GetRaindropById(id string) OperationResponseType {
+// Get raindrop
+func (n *RaindropIOClient) GetRaindropById(id int) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
-	route := "raindrop/"
+	route := ROUTE_RAINDROP
 
 	var req *http.Request
-	req, opRes.err = http.NewRequest("GET", n.Baseurl+route+id, nil)
+	req, opRes.err = http.NewRequest("GET", n.Baseurl+route+strconv.Itoa(id), nil)
 	if opRes.err != nil {
 		return opRes
 	}
@@ -270,15 +391,116 @@ func (n *RaindropIOClient) GetRaindropById(id string) OperationResponseType {
 	return opRes
 }
 
-func (n *RaindropIOClient) CreateRaindrop(r RaindropType) OperationResponseType {
+// Create raindrop
+/*
+	[IN] form:
+		created string
+		lastUpdate string
+		order int
+		important boolean
+		tags Array<string>
+		media Array<string>
+		cover string
+		collection {id: int}
+		type string
+		excerpt string
+		title string
+		link string
+		highlights Array<Highlight(?)>
+		reminder
+*/
+func (n *RaindropIOClient) CreateRaindrop(in RaindropType) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
-	route := "raindrop/"
+	route := ROUTE_RAINDROP
 
-	parsedVals, _ := json.Marshal(r)
-	fmt.Println("urlVals: ", string(parsedVals))
+	var parsed []byte
+	parsed, opRes.err = json.Marshal(in)
+	if opRes.err != nil {
+		return opRes
+	}
 
 	var req *http.Request
-	req, opRes.err = http.NewRequest("POST", n.Baseurl+route, strings.NewReader(string(parsedVals)))
+	req, opRes.err = http.NewRequest("POST", n.Baseurl+route, strings.NewReader(string(parsed)))
+	if opRes.err != nil {
+		return opRes
+	}
+	req.Header.Set("Authorization", n.Bearer)
+	req.Header.Set("Content-Type", "application/json")
+
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
+}
+
+// Update raindrop
+func (n *RaindropIOClient) UpdateRaindrop(id int, in RaindropType) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
+	route := ROUTE_RAINDROP
+
+	var parsed []byte
+	parsed, opRes.err = json.Marshal(in)
+	if opRes.err != nil {
+		return opRes
+	}
+
+	var req *http.Request
+	req, opRes.err = http.NewRequest("PUT", n.Baseurl+route+strconv.Itoa(id), strings.NewReader(string(parsed)))
+	if opRes.err != nil {
+		return opRes
+	}
+	req.Header.Set("Authorization", n.Bearer)
+	req.Header.Set("Content-Type", "application/json")
+
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
+}
+
+// Remove raindrop
+func (n *RaindropIOClient) RemoveRaindrop(id int) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
+	route := ROUTE_RAINDROP
+
+	var req *http.Request
+	req, opRes.err = http.NewRequest("DELETE", n.Baseurl+route+strconv.Itoa(id), nil)
+	if opRes.err != nil {
+		return opRes
+	}
+
+	req.Header.Add("Authorization", n.Bearer)
+
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
+}
+
+// Suggest collection and tags for new bookmark
+func (n *RaindropIOClient) NewBookmarkSuggestions(in LinkBody) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
+	route := ROUTE_RAINDROP + ROUTE_SUGGEST
+
+	var parsed []byte
+	parsed, opRes.err = json.Marshal(in)
+	if opRes.err != nil {
+		return opRes
+	}
+
+	var req *http.Request
+	req, opRes.err = http.NewRequest("POST", n.Baseurl+route, strings.NewReader(string(parsed)))
+	if opRes.err != nil {
+		return opRes
+	}
+	req.Header.Set("Authorization", n.Bearer)
+	req.Header.Set("Content-Type", "application/json")
+
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
+}
+
+// Suggest collection and tags for new bookmark
+func (n *RaindropIOClient) ExistingBookmarkSuggestions(id int) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
+	route := ROUTE_RAINDROP
+
+	var req *http.Request
+	req, opRes.err = http.NewRequest("GET", n.Baseurl+route+strconv.Itoa(id)+ROUTE_SUGGEST, nil)
 	if opRes.err != nil {
 		return opRes
 	}
