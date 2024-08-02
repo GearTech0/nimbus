@@ -11,6 +11,7 @@ import (
 const NIMBUS_CONFIG_TITLE = "nimbus.config"
 const NIMBUS_CONFIG_LINK = "bot://nimbus.config"
 const NIMBUS_TEST_COLLECTION = "46406303"
+const NIMBUS_TAG_PREFIX = "nmbs_"
 
 type Nimbus struct {
 	Config NimbusConfig `json:"config"`
@@ -33,19 +34,16 @@ func SetupNimbus(baseurl string, bearer string) *Nimbus {
 }
 
 func (n *Nimbus) RunExample() {
-
 	// Define new Raindrop
-	testCollection := CollectionType{Id: NIMBUS_TEST_COLLECTION}
-	raindropConfig := RaindropType{
-		Title:      NIMBUS_CONFIG_TITLE,
-		Link:       NIMBUS_CONFIG_LINK,
-		Collection: testCollection,
+	filter := RaindropUpdateType{
+		Ids:       []int{826815716, 823844493},
+		Important: true,
 	}
 
 	n.Config = NimbusConfig{}
 
 	// Create test raindrop
-	opRes := n.Client.CreateRaindrop(raindropConfig)
+	opRes := n.Client.UpdateManyRaindrops(46406303, filter)
 	opRes.ExecuteOnResponse(func(jsonResponse string) {
 		fmt.Print(jsonResponse)
 	})
