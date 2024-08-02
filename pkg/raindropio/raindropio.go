@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 )
@@ -18,135 +17,11 @@ const ROUTE_COLLECTION string = "collection/"
 const ROUTE_CHILDRENS string = "childrens/"
 const ROUTE_MERGE string = "merge/"
 const ROUTE_RAINDROP string = "raindrop/"
+const ROUTE_RAINDROPS string = "raindrops/"
 const ROUTE_SUGGEST string = "suggest/"
 
 // ------------------------------------------------------------------------
-// Client type
-type RaindropIOClient struct {
-	Baseurl string
-	Bearer  string
-	Handle  *http.Client
-}
-
-// ------------------------------------------------------------------------
-// Collections types
-// ------------------------------------------------------------------------
-
-type CollectionType struct {
-	Id            string               `json:"_id,omitempty"`
-	Access        CollectionAccessType `json:"access,omitempty"`
-	Collaborators CollaboratorsType    `json:"collaborators,omitempty"`
-	Color         string               `json:"color,omitempty"`
-	Count         int64                `json:"count,omitempty"`
-	Cover         []string             `json:"cover,omitempty"`
-	Created       string               `json:"created,omitempty"`
-	Expanded      bool                 `json:"expanded,omitempty"`
-	LastUpdate    string               `json:"lastUpdate,omitempty"`
-	Parent        CollectionParentType `json:"parent,omitempty"`
-	Public        bool                 `json:"public,omitempty"`
-	Sort          int64                `json:"sort,omitempty"`
-	Title         string               `json:"title,omitempty"`
-	User          UserType             `json:"user,omitempty"`
-	View          string               `json:"view,omitempty"`
-}
-
-type CollectionAccessType struct {
-	Level     int64 `json:"level,omitempty"`
-	Draggable bool  `json:"draggable,omitempty"`
-}
-
-type CollectionParentType struct {
-	Id int64 `json:"$id,omitempty"`
-}
-type HighlightType struct {
-	Id      string   `json:"_id"`
-	Text    string   `json:"text"`
-	Title   string   `json:"title"`
-	Color   string   `json:"color"`
-	Note    string   `json:"note"`
-	Created string   `json:"created"`
-	Tags    []string `json:"tags"`
-	Link    string   `json:"link"`
-}
-
-type ReminderType struct {
-	Date string `json:"date"`
-}
-
-// ------------------------------------------------------------------------
-// Raindrop types
-// ------------------------------------------------------------------------
-type RaindropType struct {
-	Created    string                         `json:"created,omitempty"`
-	LastUpdate string                         `json:"lastUpdate,omitempty"`
-	Order      int64                          `json:"order,omitempty,string"`
-	Important  bool                           `json:"important,omitempty,string"`
-	Tags       []string                       `json:"tags,omitempty"`
-	Media      []string                       `json:"media,omitempty"`
-	Cover      string                         `json:"cover,omitempty"`
-	Collection RaindropCollectionPropertyType `json:"collection,omitempty"`
-	Type       string                         `json:"type,omitempty"`
-	Excerpt    string                         `json:"excerpt,omitempty"`
-	Title      string                         `json:"title,omitempty"`
-	Link       string                         `json:"link"`
-	Highlights []string                       `json:"highlights,omitempty"`
-	Reminder   ReminderType                   `json:"reminder,omitempty"`
-}
-
-type RaindropCollectionPropertyType struct {
-	Id string `json:"$id,omitempty"`
-}
-
-// ------------------------------------------------------------------------
-// General types
-// ------------------------------------------------------------------------
-
-type UserType struct {
-	Id int64 `json:"$id,omitempty"`
-}
-
-type CollaboratorsType struct {
-	Id       string `json:"_id,omitempty"`
-	Email    string `json:"email,omitempty"`
-	EmailMD5 string `json:"email_MD5,omitempty"`
-	FullName string `json:"fullName,omitempty"`
-	Role     string `json:"role,omitempty"`
-}
-
-type IDList struct {
-	Ids []int `json:"ids"`
-}
-
-type LinkBody struct {
-	Link string `json:"link"`
-}
-
-// Convert a raindrop into url.Values
-func (r *RaindropType) ConvertToURLVals() (url.Values, error) {
-	ret := url.Values{}
-
-	ret.Set("link", r.Link)
-	ret.Set("created", r.Created)
-	ret.Set("lastUpdate", r.LastUpdate)
-	ret.Set("order", string(r.Order))
-	ret.Set("important", strconv.FormatBool(r.Important))
-	ret.Set("cover", r.Cover)
-	ret.Set("type", r.Type)
-	ret.Set("excerpt", r.Excerpt)
-	ret.Set("title", r.Title)
-
-	return ret, nil
-}
-
-// ------------------------------------------------------------------------
-// http extention
-type OperationResponseType struct {
-	response *http.Response
-	err      error
-}
-
-// ------------------------------------------------------------------------
-// Operations [TODO: Needs implementation]
+// Operations
 type Operation interface {
 	GetChildCollections() OperationResponseType
 	GetCollectionById(id string) OperationResponseType
@@ -162,12 +37,12 @@ type Operation interface {
 /*
 	[OUT] form:
 		result bool
-		items Array<object>
+		items Object
 			_id int
 			access {level int, draggable bool}
 			collaborators {$id string}
 			color string
-			cover Array<string>
+			cover []string
 			count int
 			created string
 			expanded bool
@@ -204,7 +79,7 @@ func (n *RaindropIOClient) GetChildCollections() OperationResponseType {
 			access {level int, draggable bool, for int, root bool}
 			collaborators {$id string}
 			color string
-			cover Array<string>
+			cover []string
 			count int
 			created string
 			expanded bool
@@ -216,7 +91,7 @@ func (n *RaindropIOClient) GetChildCollections() OperationResponseType {
 			view string
 
 */
-func (n *RaindropIOClient) GetCollectionById(id int) OperationResponseType {
+func (n *RaindropIOClient) GetCollection(id int) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
 	route := ROUTE_COLLECTION
 
@@ -235,12 +110,12 @@ func (n *RaindropIOClient) GetCollectionById(id int) OperationResponseType {
 /*
 	[OUT] form:
 		result bool
-		items Array<object>
+		items []object
 			_id int
 			access {level int, draggable bool}
 			collaborators {$id string}
 			color string
-			cover Array<string>
+			cover []string
 			count int
 			created string
 			expanded bool
@@ -275,7 +150,11 @@ func (n *RaindropIOClient) GetRootCollections() OperationResponseType {
 		sort int
 		public bool
 		parent {$id int}
-		cover Array<string>
+		cover []string
+
+	[OUT] form:
+		result bool
+		item JSON['CollectionType']
 */
 func (n *RaindropIOClient) CreateCollection(in CollectionType) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
@@ -307,7 +186,11 @@ func (n *RaindropIOClient) CreateCollection(in CollectionType) OperationResponse
 		sort int
 		public bool
 		parent {$id int}
-		cover Array<string>
+		cover []string
+
+	[OUT] form:
+		result bool
+		item JSON['CollectionType']
 */
 func (n *RaindropIOClient) UpdateCollection(id int, in CollectionType) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
@@ -332,6 +215,10 @@ func (n *RaindropIOClient) UpdateCollection(id int, in CollectionType) Operation
 }
 
 // Remove collection
+/*
+	[OUT] form:
+		result bool
+*/
 func (n *RaindropIOClient) RemoveCollection(id int) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
 	route := ROUTE_COLLECTION
@@ -348,6 +235,10 @@ func (n *RaindropIOClient) RemoveCollection(id int) OperationResponseType {
 }
 
 // Remove multiple collections
+/*
+	[IN] form:
+		ids []string
+*/
 func (n *RaindropIOClient) RemoveMultipleCollections(in IDList) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
 	route := ROUTE_COLLECTIONS
@@ -375,7 +266,12 @@ func (n *RaindropIOClient) RemoveMultipleCollections(in IDList) OperationRespons
 // -------------------------------------------------------------------------
 
 // Get raindrop
-func (n *RaindropIOClient) GetRaindropById(id int) OperationResponseType {
+/*
+	[OUT] form:
+		result bool
+		item RaindropType
+*/
+func (n *RaindropIOClient) GetRaindrop(id int) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
 	route := ROUTE_RAINDROP
 
@@ -398,16 +294,20 @@ func (n *RaindropIOClient) GetRaindropById(id int) OperationResponseType {
 		lastUpdate string
 		order int
 		important boolean
-		tags Array<string>
-		media Array<string>
+		tags []string
+		media []string
 		cover string
 		collection {id: int}
 		type string
 		excerpt string
 		title string
 		link string
-		highlights Array<Highlight(?)>
+		highlights []Highlight(?)
 		reminder
+
+	[OUT] form:
+		result bool
+		item RaindropType
 */
 func (n *RaindropIOClient) CreateRaindrop(in RaindropType) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
@@ -432,6 +332,27 @@ func (n *RaindropIOClient) CreateRaindrop(in RaindropType) OperationResponseType
 }
 
 // Update raindrop
+/*
+	[IN] form:
+		created string
+		lastUpdate string
+		order int
+		important bool
+		tags []string
+		media []string
+		cover string
+		collection {$id int}
+		type string
+		excerpt string
+		title string
+		link string
+		highlights []HighlightType
+		reminder {}
+
+	[OUT] form:
+		result bool
+		item RaindropType
+*/
 func (n *RaindropIOClient) UpdateRaindrop(id int, in RaindropType) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
 	route := ROUTE_RAINDROP
@@ -455,6 +376,10 @@ func (n *RaindropIOClient) UpdateRaindrop(id int, in RaindropType) OperationResp
 }
 
 // Remove raindrop
+/*
+	[OUT] form:
+		result bool
+*/
 func (n *RaindropIOClient) RemoveRaindrop(id int) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
 	route := ROUTE_RAINDROP
@@ -472,6 +397,13 @@ func (n *RaindropIOClient) RemoveRaindrop(id int) OperationResponseType {
 }
 
 // Suggest collection and tags for new bookmark
+/*
+	[OUT] form:
+		result bool
+		item Object
+			collections []{$id int}
+		tags []string
+*/
 func (n *RaindropIOClient) NewBookmarkSuggestions(in LinkBody) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
 	route := ROUTE_RAINDROP + ROUTE_SUGGEST
@@ -495,6 +427,13 @@ func (n *RaindropIOClient) NewBookmarkSuggestions(in LinkBody) OperationResponse
 }
 
 // Suggest collection and tags for new bookmark
+/*
+	[OUT] form:
+		result bool
+		item Object
+			collections []{$id int}
+		tags []string
+*/
 func (n *RaindropIOClient) ExistingBookmarkSuggestions(id int) OperationResponseType {
 	opRes := OperationResponseType{response: nil, err: nil}
 	route := ROUTE_RAINDROP
@@ -511,6 +450,125 @@ func (n *RaindropIOClient) ExistingBookmarkSuggestions(id int) OperationResponse
 	return opRes
 }
 
+// Get Raindrops
+/*
+	[OUT] form:
+		result bool
+		items []RaindropType
+*/
+func (n *RaindropIOClient) GetRaindrops(collectionId int, filter FilterType) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
+	route := ROUTE_RAINDROPS
+
+	parsedFilter := CreateFilterQuery(&filter)
+
+	var req *http.Request
+	req, opRes.err = http.NewRequest("GET", n.Baseurl+route+strconv.Itoa(collectionId)+parsedFilter, nil)
+	if opRes.err != nil {
+		return opRes
+	}
+	req.Header.Set("Authorization", n.Bearer)
+
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
+}
+
+// Create many raindrops
+/*
+	[IN] form:
+		items []RaindropType
+
+	[OUT] form:
+		result bool
+		items []RaindropType
+*/
+func (n *RaindropIOClient) CreateManyRaindrops(in ListBody) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
+	route := ROUTE_RAINDROPS
+
+	var parsed []byte
+	parsed, opRes.err = json.Marshal(in)
+	if opRes.err != nil {
+		return opRes
+	}
+
+	var req *http.Request
+	req, opRes.err = http.NewRequest("POST", n.Baseurl+route, strings.NewReader(string(parsed)))
+	if opRes.err != nil {
+		return opRes
+	}
+	req.Header.Set("Authorization", n.Bearer)
+	req.Header.Set("Content-Type", "application/json")
+
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
+}
+
+// Update many raindrops
+/*
+	[IN] form:
+		ids []string
+		important bool
+		tags []string
+		media []string
+		cover string
+		collection CollectionParentType
+*/
+func (n *RaindropIOClient) UpdateManyRaindrops(collectionId int, updates RaindropUpdateType) OperationResponseType {
+	opRes := OperationResponseType{response: nil, err: nil}
+	route := ROUTE_RAINDROPS
+
+	var parsed []byte
+	parsed, opRes.err = json.Marshal(updates)
+	if opRes.err != nil {
+		return opRes
+	}
+
+	var req *http.Request
+	req, opRes.err = http.NewRequest("PUT", n.Baseurl+route+strconv.Itoa(collectionId), strings.NewReader(string(parsed)))
+	if opRes.err != nil {
+		return opRes
+	}
+	req.Header.Set("Authorization", n.Bearer)
+	req.Header.Set("Content-Type", "application/json")
+
+	opRes.response, opRes.err = n.Handle.Do(req)
+	return opRes
+}
+
+// Build a filter query string
+func CreateFilterQuery(filter *FilterType) string {
+	queryString := "?"
+
+	if filter != nil {
+		var q []string
+		if filter.Sort != "" {
+			q = append(q, "sort="+filter.Sort)
+		}
+		if filter.Page >= 0 {
+			q = append(q, "page="+strconv.Itoa(filter.Page))
+		}
+		if filter.PerPage >= 0 {
+			q = append(q, "perpage="+strconv.Itoa(filter.PerPage))
+		}
+		if filter.Search != "" {
+			q = append(q, "search="+filter.Search)
+		}
+
+		// build query string
+		for i, s := range q {
+			if i > 0 {
+				queryString += "&"
+			}
+			queryString += s
+		}
+	}
+
+	return queryString
+}
+
+// Add callback for output of an operation.
+// JSON form located above wrapper methods.
 func (opRes *OperationResponseType) ExecuteOnResponse(callback func(jsonResponse string)) {
 	// if errored, panic
 	if opRes.err != nil {
