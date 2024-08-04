@@ -14,7 +14,7 @@
   },
   "customHandler": {
     "description": {
-      "defaultExecutablePath": "main"
+      "defaultExecutablePath": "handler"
     }
   }
 }
