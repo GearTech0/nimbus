@@ -1,6 +1,7 @@
 {
   "recommendations": [
     "ms-azuretools.vscode-azurefunctions",
-    "ms-vscode.makefile-tools"
+    "ms-vscode.makefile-tools",
+    "github.vscode-github-actions"
   ]
 }
